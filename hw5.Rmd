@@ -1,0 +1,83 @@
+---
+title: "Homework 5"
+author: "Yi Hang Khor"
+date: "4/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+## Liquor Sales in Iowa
+
+1. The complete dataset is too large. Download and import the alcohol sales data for Ames only: 
+```{r}
+dat <- readr::read_csv('2019_Iowa_Liquor_Sales.csv')
+```
+
+2. Data cleaning: 
+  a. extract geographic latitude and longitude from the variable `Store Location`
+```{r}
+colnames(dat)[8] <- "Store_Location"
+dat$Store_Location <- gsub("POINT \\(", "",dat$Store_Location)
+dat$Store_Location <- gsub("\\)", "",dat$Store_Location) 
+dat <- separate(dat, "Store_Location", into = c("Latitude", "Longitude"), sep = " (?=[^ ]+$)")
+dat[16:20,8:9]
+```
+  b. make sure the variables are in the correct type, by converting incorrect variable types.
+```{r}
+dat$Latitude <- as.numeric(dat$Latitude)
+dat$Longitude <- as.numeric(dat$Longitude)
+dat$`Vendor Number` <-as.numeric(dat$`Vendor Number`)
+str(dat)
+```
+  c. extract year, month and day from the variable `Date` as separate columns.
+```{r}
+dat <- separate(dat, "Date", into = c("Month","Day","Year"), sep = "/")
+dat$Month <- as.numeric(dat$Month)
+dat$Day <- as.numeric(dat$Day)
+dat$Year <-as.numeric(dat$Year)
+str(dat)
+```
+3. First overview:
+  a. Plot a scatterplot of lat and long of store locations. 
+```{r}
+ggplot(dat,aes(x= Latitude,y= Longitude,color = `Store Name`))+geom_point() +xlab("Latitude") +ylab("Longitude") +ggtitle("Store Locations based on Latitude and Longitude") +theme(legend.position = 'none')
+```
+ b. Provide a visual breakdown of the liquor category (by `Category Name`). Include volume sold in the breakdown.
+```{r}
+liq <- dat%>%
+  group_by(`Category Name`) %>% 
+  summarize(total= (sum(`Volume Sold (Liters)`))) %>% 
+  arrange(desc(total))
+ggplot(liq[1:15,],aes(x = reorder(`Category Name`,-total),y = `total`,fill = `Category Name`)) +geom_bar(stat= 'identity') +xlab("Liquor Name")+ggtitle("Top 15 Best Selling Liquor") +ylab("Total Sales")+scale_x_discrete(labels = abbreviate) +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+4. Find the daily sales liquor sales in Ames in 2019. Summarize the number of sales, volume of liquor sold, and amount of money spent.
+```{r}
+day <- dat %>%
+  group_by(`Month`,`Day`) %>%
+  summarize(sales = (sum (`Bottles Sold`)),volsold = (sum(`Volume Sold (Liters)`)),spent= (sum(`Sale (Dollars)`)))
+ggplot(day,aes(x= Day,y = sales))+geom_point()+facet_wrap(vars(Month)) +ylab("Number of Sales")
+ggplot(day,aes(x= Day,y = spent))+geom_point()+facet_wrap(vars(Month)) +ylab("Amount of Money Spent(Dollars)")
+```
+
+5. Plot volume sold by day (use a scatterplot of volume by day and facet by month). Discover trends with the help of `geom_smooth`. Describe any patterns.
+```{r}
+plt <- ggplot(day,aes(x= Day,y = volsold))+geom_point()+facet_wrap(vars(Month)) +ylab("Volume of Liquor Sold(Liters)") +geom_smooth(span = 0.3)
+suppressWarnings(print(plt))
+```
+
+**Based on the graph, each amplitude (The highest Volume Sold) seems to occur in a weekly interval. **
+
+6. Find the dates for ISU football home games in Fall 2019. Can you see a pattern? 
+
+**Iowa State Home Games : 8/31/2019 9/14/2019 9/21/2019 10/5/2019 10/26/2019 11/16/2019 11/23/2019**
+<br/>
+**Due to the lack of data for ISU home games, hence, no pattern can be seen.**
